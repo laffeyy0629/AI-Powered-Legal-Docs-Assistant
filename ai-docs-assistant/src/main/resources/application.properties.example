@@ -2,8 +2,8 @@ spring.application.name=ai-docs-assistant
 
 # DATABASE CONNECTION
 spring.datasource.url=jdbc:postgresql://localhost:5432/AI_docs_assistant
-spring.datasource.username=postgres
-spring.datasource.password=admin123
+spring.datasource.username=USERNAME NG DB MO
+spring.datasource.password=PASSWORD NG DB MO
 spring.datasource.driver-class-name=org.postgresql.Driver
 
 # JPA / HIBERNATE CONFIGURATION
