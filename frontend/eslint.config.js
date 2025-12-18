@@ -6,7 +6,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 export default [
   { ignores: ['dist'] },
   js.configs.recommended,
-  reactHooks.configs.recommended,
+  reactHooks.configs['flat/recommended'],
   reactRefresh.configs.vite,
   {
     files: ['**/*.{js,jsx}'],

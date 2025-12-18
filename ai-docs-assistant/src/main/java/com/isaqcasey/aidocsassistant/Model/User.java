@@ -18,7 +18,6 @@ public class User
 {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    @Column(name = "iD")
     private long id;
 
     @JsonProperty("user_name")
