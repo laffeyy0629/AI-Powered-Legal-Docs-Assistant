@@ -47,9 +47,13 @@ public class UserController
     @PostMapping("/user/signup")
     public Map<String, Object> store(@RequestBody User user)
     {
-        service.store(user);
+        User result = service.store(user);
         Map<String, Object> response = new HashMap<>();
-        response.put("message", "User registered successfully");
+        if (result != null) {
+            response.put("message", "User registered successfully");
+        } else {
+            response.put("message", "User registration failed. Username or email already exists.");
+        }
         response.put("endpoint", "/user/signup");
         response.put("method", "POST");
         return response;
