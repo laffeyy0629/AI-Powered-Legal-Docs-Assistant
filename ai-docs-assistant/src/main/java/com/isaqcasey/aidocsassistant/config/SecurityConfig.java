@@ -45,7 +45,7 @@ public class SecurityConfig
         http.cors(cors -> cors.configurationSource(corsConfigurationSource())) // enable CORS
             .csrf(csrf -> csrf.disable()) // disable CSRF correctly
             .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/", "/user/signup", "/api/status", "/api/**", "/error").permitAll() // public endpoints
+                    .requestMatchers("/", "/user/signup", "/user/status", "/api/status", "/api/**", "/error").permitAll() // public endpoints
                     .anyRequest().authenticated() // everything else requires auth
             )
             .formLogin(form -> form.permitAll()) // enable form-based login
