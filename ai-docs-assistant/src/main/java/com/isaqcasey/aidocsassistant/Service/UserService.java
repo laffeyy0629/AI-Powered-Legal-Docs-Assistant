@@ -1,4 +1,8 @@
 package com.isaqcasey.aidocsassistant.Service;
 
-public interface UserService {
+import com.isaqcasey.aidocsassistant.Model.User;
+
+public interface UserService
+{
+    User store(User user);
 }
