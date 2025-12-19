@@ -1,5 +1,6 @@
 package com.isaqcasey.aidocsassistant.Model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -17,7 +18,7 @@ public class User
 {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    private long iD;
+    private long id;
 
     @JsonProperty("user_name")
     @Column(unique = true, nullable = false)
@@ -26,6 +27,7 @@ public class User
     @Column(unique = true, nullable = false)
     private String email;
 
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @Column(nullable = false)
     private String password;
 

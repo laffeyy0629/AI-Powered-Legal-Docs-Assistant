@@ -21,6 +21,21 @@ public class SecurityConfig
         return new BCryptPasswordEncoder();
     }
 
+    // CONFIGURE CORS FOR FRONTEND
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource()
+    {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173", "http://localhost:3000")); // Vite and other dev servers
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+
     // DETERMINE WHICH URI SHOULD REQUIRED AUTHENTICATION
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, JWTFilter jwtFilter) throws Exception {
@@ -31,8 +46,8 @@ public class SecurityConfig
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/user/signup", "/user/login").permitAll()
-                        .anyRequest().authenticated()
+                    .requestMatchers("/", "/user/signup", "/user/status", "/api/status", "/api/**", "/error").permitAll() // public endpoints
+                    .anyRequest().authenticated()
                 )
                 // 2. Explicitly add your filter to the security chain
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
