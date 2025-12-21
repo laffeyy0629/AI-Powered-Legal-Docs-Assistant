@@ -4,6 +4,8 @@ import com.isaqcasey.aidocsassistant.DTO.LoginResponse;
 import com.isaqcasey.aidocsassistant.Model.User;
 import com.isaqcasey.aidocsassistant.Service.JWTService;
 import com.isaqcasey.aidocsassistant.Service.UserService;
+import jakarta.validation.Valid;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -47,23 +49,30 @@ public class UserController
 
     // USE FOR USER REGISTRATION
     @PostMapping("/user/signup")
-    public Map<String, Object> store(@RequestBody User user)
+    public Map<String, Object> store(@Valid @RequestBody User user,  BindingResult bindingResult)
     {
-        User result = service.store(user);
-        Map<String, Object> response = new HashMap<>();
-        if (result != null) {
-            response.put("message", "User registered successfully");
-        } else {
-            response.put("message", "User registration failed. Username or email already exists.");
+        Map<String, Object> reponse = new HashMap<>();
+
+        if(bindingResult.hasErrors())
+        {
+            Map<String, Object> errors = new HashMap<>();
+
+            bindingResult.getFieldErrors().forEach(error -> {
+                errors.put(error.getField(), error.getDefaultMessage());
+            });
+
+            reponse.put("success", false);
+            reponse.put("errors", errors);
+
+            return reponse;
         }
-        response.put("endpoint", "/user/signup");
-        response.put("method", "POST");
-        return response;
+
+        return service.store(user);
     }
 
     // VALIDATE USER CREDENTIALS
     @PostMapping("/user/login")
-    public LoginResponse login(@RequestBody User user)
+    public Map<String, Object> login(@RequestBody User user)
     {
         return service.login(user);
     }

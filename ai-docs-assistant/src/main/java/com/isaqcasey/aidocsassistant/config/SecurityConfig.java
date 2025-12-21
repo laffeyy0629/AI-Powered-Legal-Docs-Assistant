@@ -51,7 +51,7 @@ public class SecurityConfig
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/", "/user/signup", "/user/status", "/api/status", "/api/**", "/error").permitAll() // public endpoints
+                    .requestMatchers("/", "/user/signup", "/user/login", "/user/status", "/api/status", "/api/**", "/error").permitAll() // public endpoints
                     .anyRequest().authenticated()
                 )
                 // 2. Explicitly add your filter to the security chain

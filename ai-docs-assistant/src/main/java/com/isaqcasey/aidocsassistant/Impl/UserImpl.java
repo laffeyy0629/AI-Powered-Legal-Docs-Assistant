@@ -10,6 +10,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Service
 public class UserImpl implements UserService
 {
@@ -28,20 +31,28 @@ public class UserImpl implements UserService
 
     // USER REGISTRATION
     @Override
-    public User store(User user)
+    public Map<String, Object> store(User user)
     {
         try
         {
-            if(repo.findUserByUserName(user.getUserName()) == null && repo.findUserByEmail(user.getEmail()) == null)
+            Map<String, Object> response = new HashMap<>();
+
+            if(!repo.findUserByUserName(user.getUserName()).isPresent() && !repo.findUserByEmail(user.getEmail()).isPresent())
             {
                 user.setPassword(encoder.encode(user.getPassword()));
 
                 repo.save(user);
 
-                return user;
+                response.put("success", true);
+                response.put("message", "Registered Successfully");
+
+                return response;
             }
 
-            return null;
+            response.put("success", false);
+            response.put("message", "User already exists");
+
+            return response;
         }
         catch(Exception error)
         {
@@ -52,18 +63,10 @@ public class UserImpl implements UserService
     }
 
     // USER LOGIN
-    public LoginResponse login(User user)
+    public Map<String, Object> login(User user)
     {
-        User userFound = repo.findUserByUserName(user.getUserName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        Map<String, Object> response = new HashMap<>();
 
-        if (!encoder.matches(user.getPassword(), userFound.getPassword()))
-        {
-            throw new RuntimeException("Invalid password");
-        }
-
-        String token = jwt.generateToken(userFound.getUserName());
-
-        return new LoginResponse(token);
+        return response;
     }
 }
