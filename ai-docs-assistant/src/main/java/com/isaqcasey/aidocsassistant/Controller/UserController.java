@@ -6,6 +6,7 @@ import com.isaqcasey.aidocsassistant.Service.JWTService;
 import com.isaqcasey.aidocsassistant.Service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.validation.BindingResult;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -49,31 +50,25 @@ public class UserController
 
     // USE FOR USER REGISTRATION
     @PostMapping("/user/signup")
-    public Map<String, Object> store(@Valid @RequestBody User user,  BindingResult bindingResult)
+    public Map<String, Object> store(@Validated(UserService.OnCreate.class) @RequestBody User user, BindingResult bindingResult)
     {
-        Map<String, Object> reponse = new HashMap<>();
+        Map<String, Object> errors = service.inputValidator(bindingResult);
 
-        if(bindingResult.hasErrors())
-        {
-            Map<String, Object> errors = new HashMap<>();
-
-            bindingResult.getFieldErrors().forEach(error -> {
-                errors.put(error.getField(), error.getDefaultMessage());
-            });
-
-            reponse.put("success", false);
-            reponse.put("errors", errors);
-
-            return reponse;
-        }
+        if(! errors.get("success").equals(true))
+            return errors;
 
         return service.store(user);
     }
 
     // VALIDATE USER CREDENTIALS
     @PostMapping("/user/login")
-    public Map<String, Object> login(@RequestBody User user)
+    public Map<String, Object> login(@Validated(UserService.OnLogin.class) @RequestBody User user, BindingResult bindingResult)
     {
+        Map<String, Object> errors = service.inputValidator(bindingResult);
+
+        if(! errors.get("success").equals(true))
+            return errors;
+
         return service.login(user);
     }
 

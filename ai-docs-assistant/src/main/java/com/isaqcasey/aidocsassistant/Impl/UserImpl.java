@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.validation.BindingResult;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -29,6 +30,31 @@ public class UserImpl implements UserService
         this.jwt = jwt;
     }
 
+    // INPUT VALIDATOR
+    @Override
+    public Map<String, Object> inputValidator(BindingResult result)
+    {
+        Map<String, Object> response = new HashMap<>();
+
+        if(result.hasErrors())
+        {
+            Map<String, Object> errors = new HashMap<>();
+
+            result.getFieldErrors().forEach(error -> {
+                errors.put(error.getField(), error.getDefaultMessage());
+            });
+
+            response.put("success", false);
+            response.put("errors", errors);
+
+            return response;
+        }
+
+        response.put("success", true);
+
+        return response;
+    }
+
     // USER REGISTRATION
     @Override
     public Map<String, Object> store(User user)
@@ -37,9 +63,17 @@ public class UserImpl implements UserService
         {
             Map<String, Object> response = new HashMap<>();
 
-            if(!repo.findUserByUserName(user.getUserName()).isPresent() && !repo.findUserByEmail(user.getEmail()).isPresent())
+            if(user.getPassword().trim().length() < 8)
             {
-                user.setPassword(encoder.encode(user.getPassword()));
+                response.put("success", false);
+                response.put("message", "Password must be at least 8 characters long");
+
+                return response;
+            }
+
+            if(!repo.findUserByUserName(user.getUserName().trim()).isPresent() && !repo.findUserByEmail(user.getEmail().trim()).isPresent())
+            {
+                user.setPassword(encoder.encode(user.getPassword().trim()));
 
                 repo.save(user);
 
@@ -56,17 +90,55 @@ public class UserImpl implements UserService
         }
         catch(Exception error)
         {
-            log.error("Error occurred: {}", error.getMessage(), error);
+            Map<String, Object> exception = new HashMap<>();
 
-            return null;
+            exception.put("error", error.getMessage());
+
+            return exception;
         }
     }
 
     // USER LOGIN
     public Map<String, Object> login(User user)
     {
-        Map<String, Object> response = new HashMap<>();
+        try
+        {
+            Map<String, Object> response = new HashMap<>();
 
-        return response;
+            User foundUser = repo.findUserByUserName(user.getUserName().trim()).orElse(null);
+
+            if(foundUser == null)
+            {
+                response.put("success", false);
+                response.put("message", "Username not found");
+
+                return response;
+            }
+
+            if(!encoder.matches(user.getPassword().trim(), foundUser.getPassword()))
+            {
+                response.put("success", false);
+                response.put("message", "Incorrect password");
+
+                return response;
+            }
+
+            String token = jwt.generateToken(foundUser.getUserName());
+
+            response.put("success", true);
+            response.put("message", "Successfully logged in");
+            response.put("token", token);
+
+            return response;
+
+        }
+        catch(Exception error)
+        {
+            Map<String, Object> exception = new HashMap<>();
+
+            exception.put("error", error.getMessage());
+
+            return exception;
+        }
     }
 }
