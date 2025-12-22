@@ -1,12 +1,14 @@
 package com.isaqcasey.aidocsassistant.config;
 
 import com.isaqcasey.aidocsassistant.Security.JWTFilter;
+import com.isaqcasey.aidocsassistant.Service.JWTService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -43,7 +45,7 @@ public class SecurityConfig
 
     // DETERMINE WHICH URI SHOULD REQUIRED AUTHENTICATION
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, JWTFilter jwtFilter) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, JWTFilter jwtFilter, JWTService jWTService) throws Exception {
         return http
                 .csrf(csrf -> csrf.disable())
                 // 1. MUST set to STATELESS for JWT APIs
@@ -51,10 +53,30 @@ public class SecurityConfig
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/", "/user/signup", "/user/login", "/user/status", "/api/status", "/api/**", "/error").permitAll() // public endpoints
+                    .requestMatchers(
+                            "/",
+                            "/user/signup",
+                            "/user/login",
+                            "/user/status",
+                            "/api/status",
+                            "/api/**",
+                            "/error",
+                            "/auth/**",
+                            "/oauth2/**"
+                    ).permitAll() // public endpoints
                     .anyRequest().authenticated()
+                ).oauth2Login(oauth -> oauth
+                        .successHandler((request, response, authentication) -> {
+                            // Generate JWT
+                            OAuth2User user = (OAuth2User) authentication.getPrincipal();
+                            String email = user.getAttribute("email");
+                            String token = jWTService.generateToken(email);
+
+                            // Return JWT as JSON
+                            response.setContentType("application/json");
+                            response.getWriter().write("{\"success\":true,\"email\":\"" + email + "\",\"token\":\"" + token + "\"}");
+                        })
                 )
-                // 2. Explicitly add your filter to the security chain
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }

@@ -73,7 +73,7 @@ public class UserController
     }
 
     // AUTHENTICATED USER PURPOSES
-    @GetMapping("/api/secure")
+    @GetMapping("/jwt-try")
     public String secure()
     {
         return "JWT works";
