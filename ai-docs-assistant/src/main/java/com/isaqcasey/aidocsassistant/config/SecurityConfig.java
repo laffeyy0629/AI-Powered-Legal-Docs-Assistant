@@ -45,7 +45,7 @@ public class SecurityConfig
 
     // DETERMINE WHICH URI SHOULD REQUIRED AUTHENTICATION
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, JWTFilter jwtFilter, JWTService jWTService) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, JWTFilter jwtFilter, JWTService jwtService) throws Exception {
         return http
                 .csrf(csrf -> csrf.disable())
                 // 1. MUST set to STATELESS for JWT APIs
@@ -59,7 +59,6 @@ public class SecurityConfig
                             "/user/login",
                             "/user/status",
                             "/api/status",
-                            "/api/**",
                             "/error",
                             "/auth/**",
                             "/oauth2/**"
@@ -67,14 +66,37 @@ public class SecurityConfig
                     .anyRequest().authenticated()
                 ).oauth2Login(oauth -> oauth
                         .successHandler((request, response, authentication) -> {
-                            // Generate JWT
-                            OAuth2User user = (OAuth2User) authentication.getPrincipal();
-                            String email = user.getAttribute("email");
-                            String token = jWTService.generateToken(email);
+                            try {
+                                // Generate JWT
+                                OAuth2User user = (OAuth2User) authentication.getPrincipal();
+                                String email = user.getAttribute("email");
+                                
+                                if (email == null) {
+                                    response.setStatus(400);
+                                    response.setContentType("application/json");
+                                    response.getWriter().write("{\"success\":false,\"message\":\"Email attribute not found in OAuth2 response\"}");
+                                    return;
+                                }
+                                
+                                String token = jwtService.generateToken(email);
 
-                            // Return JWT as JSON
-                            response.setContentType("application/json");
-                            response.getWriter().write("{\"success\":true,\"email\":\"" + email + "\",\"token\":\"" + token + "\"}");
+                                // Return JWT as JSON - properly escaped
+                                response.setContentType("application/json");
+                                String jsonResponse = String.format(
+                                    "{\"success\":true,\"email\":\"%s\",\"token\":\"%s\"}",
+                                    email.replace("\"", "\\\"").replace("\\", "\\\\"),
+                                    token.replace("\"", "\\\"").replace("\\", "\\\\")
+                                );
+                                response.getWriter().write(jsonResponse);
+                            } catch (Exception e) {
+                                response.setStatus(500);
+                                response.setContentType("application/json");
+                                try {
+                                    response.getWriter().write("{\"success\":false,\"message\":\"OAuth2 authentication failed\"}");
+                                } catch (Exception ex) {
+                                    // Log or handle the nested exception
+                                }
+                            }
                         })
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)

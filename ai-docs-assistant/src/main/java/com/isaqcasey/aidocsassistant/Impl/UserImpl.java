@@ -1,6 +1,5 @@
 package com.isaqcasey.aidocsassistant.Impl;
 
-import com.isaqcasey.aidocsassistant.DTO.LoginResponse;
 import com.isaqcasey.aidocsassistant.Model.User;
 import com.isaqcasey.aidocsassistant.Repo.UserRepo;
 import com.isaqcasey.aidocsassistant.Service.JWTService;
@@ -32,7 +31,7 @@ public class UserImpl implements UserService
 
     // INPUT VALIDATOR
     @Override
-    public Map<String, Object> inputValidator(BindingResult result)
+    public Map<String, Object> getInputValidationResult(BindingResult result)
     {
         Map<String, Object> response = new HashMap<>();
 
@@ -73,6 +72,8 @@ public class UserImpl implements UserService
 
             if(!repo.findUserByUserName(user.getUserName().trim()).isPresent() && !repo.findUserByEmail(user.getEmail().trim()).isPresent())
             {
+                user.setUserName(user.getUserName().trim());
+                user.setEmail(user.getEmail().trim());
                 user.setPassword(encoder.encode(user.getPassword().trim()));
 
                 repo.save(user);
@@ -90,9 +91,11 @@ public class UserImpl implements UserService
         }
         catch(Exception error)
         {
+            log.error("Error occurred: {}", error.getMessage(), error);
             Map<String, Object> exception = new HashMap<>();
 
-            exception.put("error", error.getMessage());
+            exception.put("success", false);
+            exception.put("message", "An error occurred during registration");
 
             return exception;
         }
@@ -134,9 +137,11 @@ public class UserImpl implements UserService
         }
         catch(Exception error)
         {
+            log.error("Error occurred: {}", error.getMessage(), error);
             Map<String, Object> exception = new HashMap<>();
 
-            exception.put("error", error.getMessage());
+            exception.put("success", false);
+            exception.put("message", "An error occurred during login");
 
             return exception;
         }

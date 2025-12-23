@@ -1,10 +1,7 @@
 package com.isaqcasey.aidocsassistant.Controller;
 
-import com.isaqcasey.aidocsassistant.DTO.LoginResponse;
 import com.isaqcasey.aidocsassistant.Model.User;
-import com.isaqcasey.aidocsassistant.Service.JWTService;
 import com.isaqcasey.aidocsassistant.Service.UserService;
-import jakarta.validation.Valid;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -52,7 +49,7 @@ public class UserController
     @PostMapping("/user/signup")
     public Map<String, Object> store(@Validated(UserService.OnCreate.class) @RequestBody User user, BindingResult bindingResult)
     {
-        Map<String, Object> errors = service.inputValidator(bindingResult);
+        Map<String, Object> errors = service.getInputValidationResult(bindingResult);
 
         if(! errors.get("success").equals(true))
             return errors;
@@ -64,7 +61,7 @@ public class UserController
     @PostMapping("/user/login")
     public Map<String, Object> login(@Validated(UserService.OnLogin.class) @RequestBody User user, BindingResult bindingResult)
     {
-        Map<String, Object> errors = service.inputValidator(bindingResult);
+        Map<String, Object> errors = service.getInputValidationResult(bindingResult);
 
         if(! errors.get("success").equals(true))
             return errors;
