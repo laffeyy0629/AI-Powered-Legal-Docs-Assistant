@@ -28,3 +28,10 @@ replay_pid*
 *.iml
 *.iws
 *.ipr
+node_modules/
+bun.lock
+
+# Frontend build outputs
+frontend/dist/
+frontend/dist-ssr/
+frontend/.env.local

@@ -1,9 +1,9 @@
 package com.isaqcasey.aidocsassistant.Controller;
 
-import com.isaqcasey.aidocsassistant.DTO.LoginResponse;
 import com.isaqcasey.aidocsassistant.Model.User;
-import com.isaqcasey.aidocsassistant.Service.JWTService;
 import com.isaqcasey.aidocsassistant.Service.UserService;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -47,29 +47,30 @@ public class UserController
 
     // USE FOR USER REGISTRATION
     @PostMapping("/user/signup")
-    public Map<String, Object> store(@RequestBody User user)
+    public Map<String, Object> store(@Validated(UserService.OnCreate.class) @RequestBody User user, BindingResult bindingResult)
     {
-        User result = service.store(user);
-        Map<String, Object> response = new HashMap<>();
-        if (result != null) {
-            response.put("message", "User registered successfully");
-        } else {
-            response.put("message", "User registration failed. Username or email already exists.");
-        }
-        response.put("endpoint", "/user/signup");
-        response.put("method", "POST");
-        return response;
+        Map<String, Object> errors = service.getInputValidationResult(bindingResult);
+
+        if(! errors.get("success").equals(true))
+            return errors;
+
+        return service.store(user);
     }
 
     // VALIDATE USER CREDENTIALS
     @PostMapping("/user/login")
-    public LoginResponse login(@RequestBody User user)
+    public Map<String, Object> login(@Validated(UserService.OnLogin.class) @RequestBody User user, BindingResult bindingResult)
     {
+        Map<String, Object> errors = service.getInputValidationResult(bindingResult);
+
+        if(! errors.get("success").equals(true))
+            return errors;
+
         return service.login(user);
     }
 
     // AUTHENTICATED USER PURPOSES
-    @GetMapping("/api/secure")
+    @GetMapping("/jwt-try")
     public String secure()
     {
         return "JWT works";
