@@ -142,28 +142,34 @@ Frontend (React):
      "expires_in": 900
    }
    ↓
-5. Frontend stores both tokens (localStorage/secure storage)
+5. Frontend stores both tokens (localStorage)
    ↓
-6. Frontend uses access_token for API requests
+6. Frontend AUTOMATICALLY schedules token refresh:
+   - Decodes JWT to get expiration time
+   - Calculates refresh time (2 minutes before expiry)
+   - Sets timer to auto-refresh at that time
    ↓
-7. When access_token expires (after 15 min):
+7. Frontend uses access_token for API requests
    ↓
-8. Frontend sends refresh request → POST /user/refresh
+8. AUTO-REFRESH TIMER TRIGGERS (at 13 minutes):
+   ↓
+9. Frontend automatically sends → POST /user/refresh
    Body: { "refresh_token": "..." }
    ↓
-9. Server validates refresh token:
-   - Check if token exists in database
-   - Check if not expired
-   - Check if not revoked
-   - Check for token reuse (security)
-   ↓
-10. Server performs token rotation:
+10. Server validates refresh token:
+    - Check if token exists in database (hashed)
+    - Check if not expired
+    - Check if not revoked
+    - Check for token reuse (security)
+    ↓
+11. Server performs token rotation:
     - Generates NEW access token
     - Generates NEW refresh token
     - Revokes OLD refresh token
     - Links old → new for audit trail
+    - Stores tokens as HASHED values in DB
     ↓
-11. Server returns new tokens:
+12. Server returns new tokens:
     {
       "success": true,
       "access_token": "...",
@@ -172,16 +178,28 @@ Frontend (React):
       "expires_in": 900
     }
     ↓
-12. Frontend updates stored tokens
+13. Frontend updates stored tokens
     ↓
-13. If refresh token is expired/revoked:
+14. Frontend reschedules next auto-refresh (13 min from now)
+    ↓
+15. If refresh token is expired/revoked:
     → Force user to login again
+    ↓
+16. AUTOMATIC 401 HANDLING:
+    - If API request returns 401
+    - Frontend automatically attempts token refresh
+    - If successful, retries original request
+    - If refresh fails, redirects to login
 
 Security Features:
 - Token Reuse Detection: If revoked token is used, ALL user tokens are revoked
 - Single Session: Each login revokes previous refresh tokens
 - Automatic Cleanup: Expired tokens deleted daily at 3 AM
 - Logout Support: POST /user/logout revokes refresh token
+- Token Hashing: Refresh tokens stored as SHA-256 hashes in database
+- Automatic Refresh: Frontend refreshes tokens 2 minutes before expiry
+- Retry Logic: Failed requests auto-retry after token refresh
+- No User Intervention: Token refresh is completely transparent to user
 ```
 
 ---
@@ -981,11 +999,16 @@ FRONTEND_URL=http://localhost:5173
 **Status:** Fully implemented in `frontend/src/services/api.js`
 
 The API service now includes:
-- Token storage in localStorage
+- **Automatic Token Refresh**: Tokens automatically refresh 2 minutes before expiry
+- **Token Refresh Timer**: Decodes JWT expiration and schedules automatic refresh
+- **Refresh Token Rotation**: Stores and updates both access and refresh tokens
+- **401 Auto-Retry**: Failed requests automatically retry after token refresh
+- Token storage in localStorage (both access_token and refresh_token)
 - Automatic token inclusion in headers
 - Token management methods (setToken, getToken, clearToken)
 - Authentication check (isAuthenticated)
 - Complete login/signup integration
+- **Seamless User Experience**: Token refresh is completely transparent to users
 
 #### ~~2. **OAuth2 User Persistence**~~ ✅ COMPLETED
 
@@ -2223,6 +2246,52 @@ Your partner has successfully implemented:
 - **✅ UserRepo enhancement** - added clearExpiredVerificationTokens query method
 - **✅ Zero-trust approach** - tokens cannot be reused once verified or expired
 
+**NEWLY IMPLEMENTED - Automatic Frontend Token Refresh (December 24, 2025):**
+- **✅ Automatic token refresh timer** - automatically refreshes tokens 2 minutes before expiry
+- **✅ JWT token decoding** - extracts expiration time from access token
+- **✅ Smart refresh scheduling** - calculates and schedules refresh at optimal time
+- **✅ Token rotation on refresh** - receives and stores new access + refresh tokens
+- **✅ 401 auto-retry logic** - automatically refreshes token and retries failed requests
+- **✅ Prevents multiple simultaneous refreshes** - uses promise to queue concurrent attempts
+- **✅ Automatic redirect on refresh failure** - redirects to login if refresh token invalid
+- **✅ Seamless user experience** - users never see token expiration errors
+- **✅ Console logging** - logs refresh scheduling and execution for debugging
+- **✅ Timer cleanup on logout** - properly stops refresh timer when user logs out
+- **✅ Handles edge cases** - token decode errors, missing tokens, expired refresh tokens
+- **✅ Frontend implementation** - complete in `frontend/src/services/api.js`
+
+**How It Works:**
+```
+Login → Access Token (expires in 15 min) + Refresh Token (expires in 7 days)
+  ↓
+Frontend decodes JWT and extracts expiration time
+  ↓
+Frontend schedules automatic refresh at 13 minutes (2 min before expiry)
+  ↓
+Timer triggers → Calls POST /user/refresh with refresh_token
+  ↓
+Backend validates, rotates tokens, returns new tokens
+  ↓
+Frontend updates localStorage and reschedules next refresh
+  ↓
+User continues working without interruption ✅
+
+If API request returns 401:
+  ↓
+Frontend automatically calls POST /user/refresh
+  ↓
+If successful: Retries original request with new token
+  ↓
+If refresh fails: Redirects to login page
+```
+
+**User Benefits:**
+- **Zero interruption:** Never see "session expired" errors
+- **Automatic renewal:** Tokens refresh in background while user works
+- **Smart retry:** Failed requests automatically retry after token refresh
+- **Secure by default:** Short-lived access tokens (15 min) for security
+- **Long sessions:** Can work for 7 days without re-login (via refresh token)
+
 **NEWLY IMPLEMENTED - Forgot Password & Username Recovery (December 24, 2025):**
 - **✅ Forgot Password functionality** - users can reset forgotten passwords via email
 - **✅ Secure reset tokens** - UUID-based tokens with 1-hour expiration
@@ -2270,13 +2339,15 @@ Your partner has successfully implemented:
 8. ~~Implementing token refresh mechanism~~ ✅ COMPLETED
 9. ~~Implementing password reset functionality~~ ✅ COMPLETED
 10. ~~Frontend forgot password/username pages~~ ✅ COMPLETED
-11. Adding roles and authorization (RBAC)
-12. Implementing rate limiting for security
-13. Frontend integration of refresh token logic
+11. ~~Frontend automatic token refresh logic~~ ✅ COMPLETED
+12. Adding roles and authorization (RBAC)
+13. Implementing rate limiting for security
 
 The authentication system is now **production-ready with industry-standard security**! All core authentication features are complete including:
-- ✅ Secure JWT tokens with short expiration
+- ✅ Secure JWT tokens with short expiration (15 minutes)
 - ✅ Rotating refresh tokens with reuse detection
+- ✅ **Automatic frontend token refresh** (2 minutes before expiry)
+- ✅ **401 auto-retry with token refresh** (seamless user experience)
 - ✅ Single session enforcement
 - ✅ Automatic token cleanup
 - ✅ Secure logout mechanism with token blacklist

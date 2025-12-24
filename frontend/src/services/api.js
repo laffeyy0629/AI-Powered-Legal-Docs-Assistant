@@ -6,6 +6,14 @@ class ApiService {
   constructor() {
     this.baseURL = API_BASE_URL;
     this.token = localStorage.getItem('jwt_token');
+    this.refreshTimer = null;
+    this.isRefreshing = false;
+    this.refreshPromise = null;
+
+    // Start token refresh timer if token exists
+    if (this.token) {
+      this.startTokenRefreshTimer();
+    }
   }
 
   // Token management
@@ -13,6 +21,9 @@ class ApiService {
     this.token = token;
     localStorage.setItem('jwt_token', token);
     console.log('Token saved:', token ? 'Yes' : 'No');
+
+    // Start/restart token refresh timer
+    this.startTokenRefreshTimer();
   }
 
   getToken() {
@@ -26,6 +37,9 @@ class ApiService {
     this.token = null;
     localStorage.removeItem('jwt_token');
     console.log('Token cleared');
+
+    // Stop refresh timer
+    this.stopTokenRefreshTimer();
   }
 
   isAuthenticated() {
@@ -34,6 +48,139 @@ class ApiService {
     this.token = token;
     console.log('isAuthenticated:', !!token);
     return !!token;
+  }
+
+  // Decode JWT token to get expiration time
+  decodeToken(token) {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      return JSON.parse(jsonPayload);
+    } catch (error) {
+      console.error('Failed to decode token:', error);
+      return null;
+    }
+  }
+
+  // Start automatic token refresh timer
+  startTokenRefreshTimer() {
+    // Clear existing timer
+    this.stopTokenRefreshTimer();
+
+    const token = this.getToken();
+    if (!token) return;
+
+    // Decode token to get expiration
+    const decoded = this.decodeToken(token);
+    if (!decoded || !decoded.exp) {
+      console.warn('Could not decode token expiration');
+      return;
+    }
+
+    // Calculate time until token expires
+    const expiresAt = decoded.exp * 1000; // Convert to milliseconds
+    const now = Date.now();
+    const timeUntilExpiry = expiresAt - now;
+
+    // Refresh token 2 minutes before expiry (or immediately if less than 2 minutes left)
+    const refreshIn = Math.max(timeUntilExpiry - (2 * 60 * 1000), 0);
+
+    console.log(`[TOKEN REFRESH] Timer scheduled in ${Math.round(refreshIn / 1000)} seconds`);
+
+    this.refreshTimer = setTimeout(() => {
+      console.log('[TOKEN REFRESH] Timer triggered - calling refreshAccessToken()');
+      this.refreshAccessToken('timer');
+    }, refreshIn);
+  }
+
+  // Stop token refresh timer
+  stopTokenRefreshTimer() {
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+  }
+
+  // Refresh access token using refresh token
+  async refreshAccessToken(source = 'unknown') {
+    // Prevent multiple simultaneous refresh attempts - return existing promise
+    if (this.isRefreshing && this.refreshPromise) {
+      console.log(`[TOKEN REFRESH] Already in progress (requested by: ${source}), waiting for completion...`);
+      return this.refreshPromise;
+    }
+
+    console.log(`[TOKEN REFRESH] Starting refresh (triggered by: ${source})`);
+    this.isRefreshing = true;
+
+    const refreshToken = localStorage.getItem('refresh_token');
+    if (!refreshToken) {
+      console.error('[TOKEN REFRESH] No refresh token available');
+      this.isRefreshing = false;
+      this.clearToken();
+      window.location.href = '/login';
+      return;
+    }
+
+    // Create the refresh promise
+    this.refreshPromise = (async () => {
+      try {
+        console.log(`[TOKEN REFRESH] Making fetch call to /user/refresh`);
+
+        // Make direct fetch call without using this.post() to avoid recursive issues
+        // Do NOT include Authorization header for refresh endpoint
+        const url = `${this.baseURL}/user/refresh`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            // NO Authorization header - refresh endpoint doesn't need access token
+          },
+          body: JSON.stringify({ refresh_token: refreshToken })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Refresh failed with status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.success && data.access_token) {
+          console.log('[TOKEN REFRESH] Success! Updating tokens...');
+
+          // Update access token (this will also restart the refresh timer)
+          this.setToken(data.access_token);
+
+          // Update refresh token if a new one was provided (token rotation)
+          if (data.refresh_token) {
+            localStorage.setItem('refresh_token', data.refresh_token);
+            console.log('[TOKEN REFRESH] Refresh token rotated');
+          }
+
+          console.log(`[TOKEN REFRESH] Complete (source: ${source})`);
+          return data.access_token;
+        } else {
+          throw new Error('Token refresh failed - invalid response');
+        }
+      } catch (error) {
+        console.error(`[TOKEN REFRESH] Error (source: ${source}):`, error);
+
+        // Clear tokens and redirect to login
+        this.clearToken();
+        localStorage.removeItem('refresh_token');
+        window.location.href = '/login';
+        throw error;
+      } finally {
+        // Reset refresh state
+        console.log(`[TOKEN REFRESH] Cleaning up refresh state`);
+        this.isRefreshing = false;
+        this.refreshPromise = null;
+      }
+    })();
+
+    return this.refreshPromise;
   }
 
   async request(endpoint, options = {}) {
@@ -66,7 +213,21 @@ class ApiService {
             // Bad Request - validation errors
             throw new Error(errorData.message || 'Invalid request. Please check your input.');
           case 401:
-            // Unauthorized - invalid credentials or expired token
+            // Unauthorized - try to refresh token and retry
+            if (!options._retry && endpoint !== '/user/refresh' && endpoint !== '/user/login') {
+              console.log(`[401 HANDLER] Unauthorized for ${endpoint} - attempting token refresh...`);
+              try {
+                await this.refreshAccessToken('401-handler');
+                // Retry the original request with new token
+                console.log(`[401 HANDLER] Retrying original request: ${endpoint}`);
+                return this.request(endpoint, { ...options, _retry: true });
+              } catch (refreshError) {
+                console.error('[401 HANDLER] Token refresh failed:', refreshError);
+                this.clearToken();
+                throw new Error(errorData.message || 'Authentication failed. Please login again.');
+              }
+            }
+            // If already retried or refresh endpoint, just fail
             this.clearToken();
             throw new Error(errorData.message || 'Authentication failed. Please login again.');
           case 403:
