@@ -9,7 +9,6 @@ const ThreeBackground = lazy(() => import('./ThreeBackground'));
 const Dashboard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [authenticated, setAuthenticated] = useState(false);
 
   useEffect(() => {
     console.log('Dashboard mounted');
@@ -31,7 +30,6 @@ const Dashboard = () => {
       .testProtectedEndpoint()
       .then((response) => {
         console.log('Protected endpoint response:', response);
-        setAuthenticated(true);
         setLoading(false);
       })
       .catch((error) => {

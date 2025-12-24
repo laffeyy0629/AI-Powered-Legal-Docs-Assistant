@@ -95,7 +95,9 @@ public class RefreshTokenService {
      */
     @Transactional
     public RefreshToken rotateRefreshToken(String oldToken) {
-        RefreshToken oldRefreshToken = refreshTokenRepo.findByToken(oldToken)
+        // Hash the token before lookup (tokens are stored hashed in DB)
+        String hashedOldToken = tokenHashingService.hashToken(oldToken);
+        RefreshToken oldRefreshToken = refreshTokenRepo.findByToken(hashedOldToken)
                 .orElseThrow(() -> new RuntimeException("Refresh token not found"));
 
         if (oldRefreshToken.isExpired()) {
