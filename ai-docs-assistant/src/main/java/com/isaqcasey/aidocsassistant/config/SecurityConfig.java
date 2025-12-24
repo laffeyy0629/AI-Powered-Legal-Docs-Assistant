@@ -37,7 +37,16 @@ public class SecurityConfig
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173", "http://localhost:3000")); // Vite and other dev servers
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
+
+        // Specify exact headers instead of "*" for better security
+        configuration.setAllowedHeaders(Arrays.asList(
+                "Authorization",      // Required for JWT Bearer tokens
+                "Content-Type",       // Required for JSON requests/responses
+                "Accept",            // Required for content negotiation
+                "Origin",            // Required for CORS
+                "X-Requested-With"   // Common for AJAX requests
+        ));
+
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

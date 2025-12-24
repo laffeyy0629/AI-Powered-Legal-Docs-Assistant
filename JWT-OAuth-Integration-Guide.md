@@ -224,7 +224,30 @@ Security Features:
    ```java
    configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173", "http://localhost:3000"));
    configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+   
+   // Security: Only allow specific headers (not wildcard "*")
+   configuration.setAllowedHeaders(Arrays.asList(
+       "Authorization",      // Required for JWT Bearer tokens
+       "Content-Type",       // Required for JSON requests/responses
+       "Accept",            // Required for content negotiation
+       "Origin",            // Required for CORS
+       "X-Requested-With"   // Common for AJAX requests
+   ));
    ```
+   
+   **When to update:** Add more headers to `setAllowedHeaders()` if you implement features that require custom headers:
+   - File uploads: Add `"Content-Disposition"`, `"Content-Length"`
+   - Custom API versioning: Add `"X-API-Version"`
+   - Custom authentication: Add `"X-API-Key"` (if using API keys)
+   - GraphQL: Add `"GraphQL-Preflight"`
+   - WebSockets: Add `"Sec-WebSocket-Protocol"`, `"Sec-WebSocket-Extensions"`
+   
+   **Current headers are sufficient for:**
+   - ✅ JWT authentication (Authorization)
+   - ✅ REST API calls (Content-Type, Accept)
+   - ✅ Standard AJAX requests (X-Requested-With)
+   - ✅ OAuth2 flows (Origin)
+   - ✅ File downloads/uploads via standard multipart forms
 
 3. **Session Management**: Set to STATELESS (required for JWT)
    ```java
@@ -966,9 +989,12 @@ FRONTEND_URL=http://localhost:5173
    - ✅ Frontend api.js handles all status codes with user-friendly messages
    - ✅ Specific error messages for each failure case (login failed, user exists, etc.)
 
-9. **CORS Configuration Too Permissive**
-    - Allows all headers with `"*"`
-    - **Fix Required**: Specify exact headers needed
+9. **~~CORS Configuration Too Permissive~~ ✅ FIXED**
+    - ✅ **IMPLEMENTED**: Now specifies exact headers needed instead of wildcard `"*"`
+    - ✅ Only allows: `Authorization`, `Content-Type`, `Accept`, `Origin`, `X-Requested-With`
+    - ✅ Follows security best practices for production readiness
+    - ✅ Reduces attack surface by limiting accepted headers
+    - ✅ Maintains full functionality while improving security
 
 ### 📝 Low Priority Issues
 
