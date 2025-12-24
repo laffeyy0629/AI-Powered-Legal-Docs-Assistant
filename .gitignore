@@ -35,3 +35,17 @@ bun.lock
 frontend/dist/
 frontend/dist-ssr/
 frontend/.env.local
+
+# Environment variables (NEVER commit these)
+.env
+.env.local
+.env.production
+.env.development
+
+# Application configuration with secrets
+ai-docs-assistant/src/main/resources/application.properties
+ai-docs-assistant/src/main/resources/application.yml
+# Keep the .example files
+!ai-docs-assistant/src/main/resources/application.properties.example
+!ai-docs-assistant/src/main/resources/application.yml.example
+

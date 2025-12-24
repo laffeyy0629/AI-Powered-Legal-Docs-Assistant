@@ -1,7 +1,9 @@
 package com.isaqcasey.aidocsassistant.config;
 
+import com.isaqcasey.aidocsassistant.Model.User;
 import com.isaqcasey.aidocsassistant.Security.JWTFilter;
 import com.isaqcasey.aidocsassistant.Service.JWTService;
+import com.isaqcasey.aidocsassistant.Service.OAuthService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -45,7 +47,7 @@ public class SecurityConfig
 
     // DETERMINE WHICH URI SHOULD REQUIRED AUTHENTICATION
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, JWTFilter jwtFilter, JWTService jwtService) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, JWTFilter jwtFilter, JWTService jwtService, OAuthService oauthService) throws Exception {
         return http
                 .csrf(csrf -> csrf.disable())
                 // 1. MUST set to STATELESS for JWT APIs
@@ -57,6 +59,13 @@ public class SecurityConfig
                             "/",
                             "/user/signup",
                             "/user/login",
+                            "/user/verify-email",
+                            "/user/resend-verification",
+                            "/user/refresh",
+                            "/user/logout",
+                            "/user/forgot-password",
+                            "/user/reset-password",
+                            "/user/forgot-username",
                             "/user/status",
                             "/api/status",
                             "/error",
@@ -67,34 +76,59 @@ public class SecurityConfig
                 ).oauth2Login(oauth -> oauth
                         .successHandler((request, response, authentication) -> {
                             try {
-                                // Generate JWT
-                                OAuth2User user = (OAuth2User) authentication.getPrincipal();
-                                String email = user.getAttribute("email");
-                                
+                                System.out.println("=== OAuth2 Login Success Handler Started ===");
+
+                                // Get OAuth2 user information
+                                OAuth2User oauthUser = (OAuth2User) authentication.getPrincipal();
+
+                                System.out.println("OAuth2 User Attributes: " + oauthUser.getAttributes());
+                                System.out.println("Authentication Name: " + authentication.getName());
+                                System.out.println("Authentication Details: " + authentication.getDetails());
+
+                                String email = oauthUser.getAttribute("email");
+                                String name = oauthUser.getAttribute("name");
+                                String providerId = oauthUser.getAttribute("sub"); // Google uses 'sub' for user ID
+
+                                System.out.println("Extracted - Email: " + email + ", Name: " + name + ", ProviderId: " + providerId);
+
                                 if (email == null) {
-                                    response.setStatus(400);
-                                    response.setContentType("application/json");
-                                    response.getWriter().write("{\"success\":false,\"message\":\"Email attribute not found in OAuth2 response\"}");
+                                    System.out.println("ERROR: Email is null, redirecting with error");
+                                    response.sendRedirect("http://localhost:5173/auth/callback?error=no_email");
                                     return;
                                 }
                                 
-                                String token = jwtService.generateToken(email);
+                                // Determine provider - check the authorization request
+                                String provider = "google"; // Default to google since we're using Google OAuth
+                                System.out.println("Provider: " + provider);
 
-                                // Return JWT as JSON - properly escaped
-                                response.setContentType("application/json");
-                                String jsonResponse = String.format(
-                                    "{\"success\":true,\"email\":\"%s\",\"token\":\"%s\"}",
-                                    email.replace("\"", "\\\"").replace("\\", "\\\\"),
-                                    token.replace("\"", "\\\"").replace("\\", "\\\\")
-                                );
-                                response.getWriter().write(jsonResponse);
+                                // Create or update user in database
+                                System.out.println("Calling OAuthService.findOrCreateOAuthUser...");
+                                User user = oauthService.findOrCreateOAuthUser(email, name, provider, providerId);
+                                System.out.println("User created/found: " + user.getUserName() + " (ID: " + user.getId() + ")");
+
+                                // Generate JWT token using the username from database
+                                System.out.println("Generating JWT token...");
+                                String token = jwtService.generateToken(user.getUserName());
+                                System.out.println("JWT token generated successfully");
+
+                                // Redirect to frontend callback with token
+                                String redirectUrl = "http://localhost:5173/auth/callback?token=" + token;
+                                System.out.println("Redirecting to: " + redirectUrl);
+                                response.sendRedirect(redirectUrl);
+                                System.out.println("=== OAuth2 Login Success Handler Completed ===");
+
                             } catch (Exception e) {
-                                response.setStatus(500);
-                                response.setContentType("application/json");
+                                System.err.println("=== OAuth2 Login Error ===");
+                                System.err.println("Error Type: " + e.getClass().getName());
+                                System.err.println("Error Message: " + e.getMessage());
+                                e.printStackTrace();
+
+                                // Redirect to frontend with error
                                 try {
-                                    response.getWriter().write("{\"success\":false,\"message\":\"OAuth2 authentication failed\"}");
+                                    response.sendRedirect("http://localhost:5173/auth/callback?error=auth_failed");
                                 } catch (Exception ex) {
-                                    // Log or handle the nested exception
+                                    System.err.println("Failed to redirect after error:");
+                                    ex.printStackTrace();
                                 }
                             }
                         })

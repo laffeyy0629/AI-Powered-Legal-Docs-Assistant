@@ -17,10 +17,56 @@ if (-not (Test-Path $bunPath)) {
 Write-Host "SUCCESS: Bun found" -ForegroundColor Green
 Write-Host ""
 
+# Check/Load JWT environment variables
+Write-Host "Configuring JWT environment variables..." -ForegroundColor Yellow
+$envFile = Join-Path $projectRoot "ai-docs-assistant\.env"
+if (Test-Path $envFile) {
+    Get-Content $envFile | ForEach-Object {
+        if ($_ -match '^([^#][^=]+)=(.*)$') {
+            $key = $matches[1].Trim()
+            $value = $matches[2].Trim()
+            [Environment]::SetEnvironmentVariable($key, $value, "Process")
+            Write-Host "  Loaded: $key" -ForegroundColor Gray
+        }
+    }
+    Write-Host "SUCCESS: Environment variables loaded from .env" -ForegroundColor Green
+} else {
+    Write-Host "WARNING: No .env file found at $envFile" -ForegroundColor Yellow
+    Write-Host "Using default development values (NOT secure for production)" -ForegroundColor Yellow
+}
+Write-Host ""
+
 # Start Backend in new window
 Write-Host "Starting Backend (Spring Boot)..." -ForegroundColor Yellow
 $backendPath = Join-Path $projectRoot "ai-docs-assistant"
-$backendCommand = "cd '$backendPath'; Write-Host 'Starting Spring Boot Backend...' -ForegroundColor Cyan; & '.\mvnw.cmd' spring-boot:run"
+$jwtSecretKey = [Environment]::GetEnvironmentVariable("JWT_SECRET_KEY", "Process")
+$jwtExpiration = [Environment]::GetEnvironmentVariable("JWT_EXPIRATION_MS", "Process")
+$mailHost = [Environment]::GetEnvironmentVariable("MAIL_HOST", "Process")
+$mailPort = [Environment]::GetEnvironmentVariable("MAIL_PORT", "Process")
+$mailUsername = [Environment]::GetEnvironmentVariable("MAIL_USERNAME", "Process")
+$mailPassword = [Environment]::GetEnvironmentVariable("MAIL_PASSWORD", "Process")
+$mailFromName = [Environment]::GetEnvironmentVariable("MAIL_FROM_NAME", "Process")
+$googleClientId = [Environment]::GetEnvironmentVariable("GOOGLE_CLIENT_ID", "Process")
+$googleClientSecret = [Environment]::GetEnvironmentVariable("GOOGLE_CLIENT_SECRET", "Process")
+$frontendUrl = [Environment]::GetEnvironmentVariable("FRONTEND_URL", "Process")
+
+$backendCommand = @"
+`$env:JWT_SECRET_KEY='$jwtSecretKey'
+`$env:JWT_EXPIRATION_MS='$jwtExpiration'
+`$env:MAIL_HOST='$mailHost'
+`$env:MAIL_PORT='$mailPort'
+`$env:MAIL_USERNAME='$mailUsername'
+`$env:MAIL_PASSWORD='$mailPassword'
+`$env:MAIL_FROM_NAME='$mailFromName'
+`$env:GOOGLE_CLIENT_ID='$googleClientId'
+`$env:GOOGLE_CLIENT_SECRET='$googleClientSecret'
+`$env:FRONTEND_URL='$frontendUrl'
+cd '$backendPath'
+Write-Host 'Starting Spring Boot Backend...' -ForegroundColor Cyan
+Write-Host 'JWT Environment: Configured' -ForegroundColor Green
+Write-Host 'Mail Environment: Configured' -ForegroundColor Green
+& '.\mvnw.cmd' spring-boot:run
+"@
 Start-Process powershell -ArgumentList "-NoExit", "-Command", $backendCommand
 
 Write-Host "Waiting 5 seconds for backend to initialize..." -ForegroundColor Yellow
