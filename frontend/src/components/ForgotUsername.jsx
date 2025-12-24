@@ -1,5 +1,5 @@
 import { useState, lazy, Suspense } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import api from '../services/api';
 
@@ -7,7 +7,6 @@ import api from '../services/api';
 const ThreeBackground = lazy(() => import('./ThreeBackground'));
 
 export default function ForgotUsername() {
-  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
