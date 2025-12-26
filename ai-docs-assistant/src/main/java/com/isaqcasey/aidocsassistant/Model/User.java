@@ -35,7 +35,7 @@ public class User
     private String email;
 
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    @Column(nullable = false)
+    @Column(nullable = true)  // Allow NULL for OAuth-only accounts
     @NotBlank(message = "Password is required", groups = {UserService.OnLogin.class,  UserService.OnCreate.class})
     @Size(min = 8, message = "Password must be at least 8 characters", groups = {UserService.OnLogin.class, UserService.OnCreate.class})
     private String password;
@@ -45,6 +45,17 @@ public class User
 
     @JsonProperty("o_auth_id")
     private String oAuthId;
+
+    @Column(nullable = false)
+    private boolean emailVerified = false;
+
+    private String verificationToken;
+
+    private LocalDateTime verificationTokenExpiry;
+
+    private String passwordResetToken;
+
+    private LocalDateTime passwordResetTokenExpiry;
 
     @CreationTimestamp
     @Column(updatable = false)

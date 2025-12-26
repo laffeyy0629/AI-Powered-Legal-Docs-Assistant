@@ -1,6 +1,7 @@
 package com.isaqcasey.aidocsassistant.Security;
 
 import com.isaqcasey.aidocsassistant.Service.JWTService;
+import com.isaqcasey.aidocsassistant.Service.TokenBlacklistService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,10 +17,12 @@ import java.io.IOException;
 public class JWTFilter extends OncePerRequestFilter
 {
     private final JWTService jwt;
+    private final TokenBlacklistService tokenBlacklistService;
 
-    public JWTFilter(JWTService jwt)
+    public JWTFilter(JWTService jwt, TokenBlacklistService tokenBlacklistService)
     {
         this.jwt = jwt;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @Override
@@ -29,27 +32,39 @@ public class JWTFilter extends OncePerRequestFilter
             throws ServletException, IOException
     {
         String authHeader = request.getHeader("Authorization");
-        // 1. Check if the filter is even being triggered and what the header looks like
         System.out.println("Filter triggered for URL: " + request.getRequestURI());
         System.out.println("Auth Header: " + authHeader);
 
         if (authHeader != null && authHeader.startsWith("Bearer "))
         {
             String token = authHeader.substring(7);
-            // 2. Check if the token was sliced correctly
             System.out.println("Extracted Token: " + token);
 
             try
             {
+                // Check if token is blacklisted (invalidated during logout)
+                if (tokenBlacklistService.isTokenInvalidated(token)) {
+                    System.out.println("Token is blacklisted (invalidated)");
+                    // Don't set authentication - token is invalid
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+
                 String username = jwt.extractUserName(token);
-                // 3. Check if the JWT utility successfully parsed the username
                 System.out.println("Extracted Username: " + username);
+
+                // Validate token is not expired
+                if (jwt.isTokenExpired(token)) {
+                    System.out.println("Token has expired");
+                    filterChain.doFilter(request, response);
+                    return;
+                }
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
                                 username,
                                 null,
-                                null // 4. POTENTIAL ISSUE HERE (See below)
+                                null
                         );
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -58,7 +73,6 @@ public class JWTFilter extends OncePerRequestFilter
             }
             catch (Exception e)
             {
-                // 5. Catch any parsing or expiration errors
                 System.out.println("JWT Extraction failed: " + e.getMessage());
             }
         }
@@ -70,3 +84,4 @@ public class JWTFilter extends OncePerRequestFilter
         filterChain.doFilter(request, response);
     }
 }
+

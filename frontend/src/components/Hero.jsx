@@ -1,10 +1,13 @@
 import { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { gsap } from 'gsap';
 
 export default function Hero() {
+  const navigate = useNavigate();
   const titleRef = useRef(null);
   const subtitleRef = useRef(null);
   const buttonRef = useRef(null);
+  const loginButtonRef = useRef(null);
   const containerRef = useRef(null);
   const scrollIndicatorRef = useRef(null);
   const floatingShapesRef = useRef([]);
@@ -15,6 +18,7 @@ export default function Hero() {
       gsap.set(titleRef.current, { y: 100, opacity: 0 });
       gsap.set(subtitleRef.current, { y: 50, opacity: 0 });
       gsap.set(buttonRef.current, { y: 30, scale: 0.8, opacity: 0 });
+      gsap.set(loginButtonRef.current, { y: 30, scale: 0.8, opacity: 0 });
 
       // Create timeline for sequential animations
       const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
@@ -46,6 +50,17 @@ export default function Hero() {
             ease: 'elastic.out(1, 0.6)',
           },
           '-=0.3'
+        )
+        .to(
+          loginButtonRef.current,
+          {
+            y: 0,
+            scale: 1,
+            opacity: 1,
+            duration: 1,
+            ease: 'elastic.out(1, 0.6)',
+          },
+          '-=0.8'
         );
 
       // Floating animation for the entire container (starts after intro animation)
@@ -129,13 +144,20 @@ export default function Hero() {
           </span>
         </p>
 
-        <div className="relative z-30">
+        <div className="relative z-30 flex gap-4 justify-center items-center flex-wrap">
           <button
             ref={buttonRef}
             onClick={handleGetStarted}
             className="px-8 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white text-lg font-semibold rounded-full shadow-lg hover:shadow-indigo-500/50 transition-all duration-300 cursor-pointer"
           >
             Get Started
+          </button>
+          <button
+            ref={loginButtonRef}
+            onClick={() => navigate('/login')}
+            className="px-8 py-4 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white text-lg font-semibold rounded-full border-2 border-white/30 hover:border-white/50 shadow-lg transition-all duration-300 cursor-pointer"
+          >
+            Login
           </button>
         </div>
 
