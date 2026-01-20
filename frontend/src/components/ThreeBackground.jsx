@@ -6,9 +6,9 @@ import * as random from 'maath/random';
 function Stars(props) {
   const ref = useRef();
 
-  // Generate random sphere positions
+  // Generate random sphere positions - reduced from 5000 to 1000 for better performance
   const sphere = useMemo(() => {
-    const positions = random.inSphere(new Float32Array(5000 * 3), { radius: 1.5 });
+    const positions = random.inSphere(new Float32Array(1000 * 3), { radius: 1.5 });
     return positions;
   }, []);
 
@@ -35,9 +35,20 @@ function Stars(props) {
 }
 
 export default function ThreeBackground() {
+  // Check for reduced motion preference
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  
+  if (prefersReducedMotion) {
+    return null; // Don't render Three.js scene for reduced motion users
+  }
+
   return (
     <div className="fixed inset-0 -z-10 pointer-events-none">
-      <Canvas camera={{ position: [0, 0, 1] }}>
+      <Canvas 
+        camera={{ position: [0, 0, 1] }}
+        dpr={[1, 1.5]} // Limit pixel ratio for better performance
+        performance={{ min: 0.5 }} // Allow frame rate to drop if needed
+      >
         <Stars />
       </Canvas>
     </div>

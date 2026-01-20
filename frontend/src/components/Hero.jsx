@@ -63,15 +63,20 @@ export default function Hero() {
           '-=0.8'
         );
 
-      // Floating animation for the entire container (starts after intro animation)
-      gsap.to(containerRef.current, {
-        y: -20,
-        duration: 2.5,
-        repeat: -1,
-        yoyo: true,
-        ease: 'sine.inOut',
-        delay: 2,
-      });
+      // Check for reduced motion preference
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      
+      if (!prefersReducedMotion) {
+        // Floating animation for the entire container (starts after intro animation)
+        gsap.to(containerRef.current, {
+          y: -20,
+          duration: 2.5,
+          repeat: -1,
+          yoyo: true,
+          ease: 'sine.inOut',
+          delay: 2,
+        });
+      }
 
       // Scroll indicator animation
       if (scrollIndicatorRef.current) {
@@ -86,20 +91,22 @@ export default function Hero() {
         });
       }
 
-      // Floating shapes animation
-      floatingShapesRef.current.forEach((shape, index) => {
-        if (shape) {
-          gsap.to(shape, {
-            y: -30 + index * 10,
-            x: index % 2 === 0 ? 20 : -20,
-            duration: 3 + index * 0.5,
-            repeat: -1,
-            yoyo: true,
-            ease: 'sine.inOut',
-            delay: index * 0.3,
-          });
-        }
-      });
+      // Floating shapes animation - only if motion is allowed
+      if (!prefersReducedMotion) {
+        floatingShapesRef.current.forEach((shape, index) => {
+          if (shape) {
+            gsap.to(shape, {
+              y: -30 + index * 10,
+              x: index % 2 === 0 ? 20 : -20,
+              duration: 3 + index * 0.5,
+              repeat: -1,
+              yoyo: true,
+              ease: 'sine.inOut',
+              delay: index * 0.3,
+            });
+          }
+        });
+      }
     });
 
     return () => ctx.revert();
@@ -161,10 +168,9 @@ export default function Hero() {
           </button>
         </div>
 
-        {/* Decorative elements - More visible and animated */}
-        <div className="absolute -top-20 -left-20 w-96 h-96 bg-purple-500 rounded-full mix-blend-screen filter blur-3xl opacity-30 animate-pulse -z-10"></div>
-        <div className="absolute -top-10 -right-20 w-96 h-96 bg-indigo-500 rounded-full mix-blend-screen filter blur-3xl opacity-30 animate-pulse -z-10" style={{ animationDelay: '1s' }}></div>
-        <div className="absolute -bottom-20 left-1/2 -translate-x-1/2 w-96 h-96 bg-pink-500 rounded-full mix-blend-screen filter blur-3xl opacity-20 animate-pulse -z-10" style={{ animationDelay: '2s' }}></div>
+        {/* Decorative elements - Optimized for performance */}
+        <div className="absolute -top-20 -left-20 w-96 h-96 bg-purple-500 rounded-full mix-blend-screen filter blur-2xl opacity-20 -z-10"></div>
+        <div className="absolute -top-10 -right-20 w-96 h-96 bg-indigo-500 rounded-full mix-blend-screen filter blur-2xl opacity-20 -z-10"></div>
 
         {/* Floating accent shapes */}
         <div ref={el => floatingShapesRef.current[0] = el} className="absolute top-20 left-10 w-4 h-4 bg-indigo-400 rounded-full opacity-40 blur-sm"></div>

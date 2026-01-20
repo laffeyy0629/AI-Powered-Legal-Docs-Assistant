@@ -1,6 +1,7 @@
-import { useEffect, useState, lazy, Suspense } from 'react';
+import { useEffect, useState, lazy, Suspense, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { gsap } from 'gsap';
 import apiService from '../services/api';
 
 // Lazy load Three.js background
@@ -9,50 +10,113 @@ const ThreeBackground = lazy(() => import('./ThreeBackground'));
 const Dashboard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [file, setFile] = useState(null);
+  const [summary, setSummary] = useState('');
+  const [analyzing, setAnalyzing] = useState(false);
+  const thinkingRef = useRef(null);
+  const dotsRef = useRef([]);
 
   useEffect(() => {
-    console.log('Dashboard mounted');
-
     // Check if user is authenticated
     const isAuth = apiService.isAuthenticated();
-    console.log('Dashboard - isAuthenticated:', isAuth);
-
     if (!isAuth) {
-      console.log('Not authenticated, redirecting to login');
       navigate('/login');
       return;
     }
 
-    console.log('Authenticated, testing token with backend...');
-
     // Test the JWT token
     apiService
       .testProtectedEndpoint()
-      .then((response) => {
-        console.log('Protected endpoint response:', response);
-        setLoading(false);
-      })
-      .catch((error) => {
-        console.error('Protected endpoint failed:', error);
+      .then(() => setLoading(false))
+      .catch(() => {
         apiService.clearToken();
         navigate('/login');
       });
   }, [navigate]);
 
+  useEffect(() => {
+    if (analyzing && thinkingRef.current) {
+      // Animate the thinking text
+      gsap.fromTo(
+        thinkingRef.current,
+        { scale: 0.8, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 0.5, ease: 'back.out(1.7)' }
+      );
+
+      // Animate dots sequentially
+      dotsRef.current.forEach((dot, index) => {
+        gsap.fromTo(
+          dot,
+          { y: 0 },
+          {
+            y: -15,
+            duration: 0.5,
+            repeat: -1,
+            yoyo: true,
+            ease: 'power1.inOut',
+            delay: index * 0.15,
+          }
+        );
+      });
+    }
+  }, [analyzing]);
+
   const handleLogout = () => {
     apiService.logout();
+    navigate('/login');
   };
+
+  const handleFileChange = (e) => {
+    setFile(e.target.files[0]);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!file) return;
+
+    try {
+      setAnalyzing(true);
+      setSummary('');
+      
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const token = apiService.getToken(); // get JWT from localStorage/session
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/api/documents/analyze`,
+        {
+          method: 'POST',
+          body: formData,
+          headers: {
+            Authorization: `Bearer ${token}`, // <--- important!
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to analyze document');
+      }
+
+      const text = await response.text();
+      setSummary(text);
+    } catch (err) {
+      console.error('Error uploading document:', err);
+      setSummary('Failed to analyze document.');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
 
   if (loading) {
     return (
       <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-black overflow-hidden">
-        {/* Three.js background even during loading */}
         <div className="absolute inset-0 opacity-70">
           <Suspense fallback={null}>
             <ThreeBackground />
           </Suspense>
         </div>
-
         <div className="text-center relative z-10">
           <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-white text-xl">Loading...</p>
@@ -63,17 +127,17 @@ const Dashboard = () => {
 
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black px-4 py-8 overflow-hidden">
-      {/* Three.js animated background - Bold and prominent (70% opacity) */}
+      {/* Three.js background */}
       <div className="absolute inset-0 opacity-70">
         <Suspense fallback={null}>
           <ThreeBackground />
         </Suspense>
       </div>
 
-      {/* Enhanced grid overlay - more visible */}
+      {/* Grid overlay */}
       <div className="fixed inset-0 bg-[linear-gradient(to_right,#80808018_1px,transparent_1px),linear-gradient(to_bottom,#80808018_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none"></div>
 
-      {/* Bold animated background blobs */}
+      {/* Animated blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute top-1/2 -left-40 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
@@ -100,10 +164,6 @@ const Dashboard = () => {
                 onClick={() => navigate('/settings')}
                 className="bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center gap-2"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
                 Settings
               </button>
               <button
@@ -116,39 +176,174 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Success Message */}
+        {/* Document Upload */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.6 }}
-          className="bg-green-500/20 backdrop-blur-2xl rounded-2xl shadow-2xl border border-green-400/60 p-8 mb-8"
+          className="bg-gray-800/60 backdrop-blur-2xl rounded-2xl shadow-2xl border border-gray-600/60 p-8 mb-8 hover:border-green-400/60 transition-all duration-300"
         >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center shadow-lg shadow-green-500/50">
-              <svg
-                className="w-6 h-6 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-            </div>
+          <form onSubmit={handleSubmit} encType="multipart/form-data" className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold text-white mb-1">Authentication Successful!</h2>
-              <p className="text-gray-300">
-                Your JWT token is working correctly. You can now access protected resources.
-              </p>
+              <h2 className="text-3xl font-bold bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent mb-3">
+                Document Analysis
+              </h2>
+              <p className="text-gray-300 mb-6">Upload your legal document for AI-powered analysis</p>
             </div>
-          </div>
+
+            <div className="space-y-4">
+              <div className="relative">
+                <input
+                  type="file"
+                  name="file"
+                  onChange={handleFileChange}
+                  required
+                  className="block w-full text-gray-300 file:mr-4 file:py-3 file:px-6 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gradient-to-r file:from-green-600 file:to-emerald-600 file:text-white hover:file:from-green-700 hover:file:to-emerald-700 file:cursor-pointer file:transition-all file:duration-300 file:shadow-lg hover:file:shadow-green-500/50 bg-gray-700/50 border border-gray-600 rounded-lg cursor-pointer hover:border-green-400/60 transition-all duration-300 backdrop-blur-xl p-3"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={!file || analyzing}
+                className="w-full bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 hover:from-green-700 hover:via-emerald-700 hover:to-teal-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-bold py-4 px-8 rounded-lg transition-all duration-300 transform hover:scale-[1.02] disabled:scale-100 shadow-xl hover:shadow-green-500/50 disabled:shadow-none flex items-center justify-center gap-3"
+              >
+                {analyzing ? (
+                  <>
+                    <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                      />
+                    </svg>
+                    Analyze Document
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+
+          {analyzing && (
+            <div className="mt-6 p-8 bg-gradient-to-br from-gray-800/90 via-blue-900/30 to-purple-900/30 backdrop-blur-xl rounded-xl border border-blue-500/50 shadow-2xl shadow-blue-500/20">
+              <div className="flex flex-col items-center justify-center space-y-6">
+                <div className="relative w-24 h-24">
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 opacity-20 animate-pulse"></div>
+                  <svg className="w-24 h-24 animate-spin" viewBox="0 0 100 100">
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="40"
+                      stroke="url(#gradient)"
+                      strokeWidth="6"
+                      fill="none"
+                      strokeLinecap="round"
+                      strokeDasharray="60 200"
+                    />
+                    <defs>
+                      <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#3B82F6" />
+                        <stop offset="50%" stopColor="#8B5CF6" />
+                        <stop offset="100%" stopColor="#EC4899" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                </div>
+                <div ref={thinkingRef} className="text-center">
+                  <h3 className="text-3xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-3 flex items-center justify-center gap-2">
+                    Thinking
+                    <span className="flex gap-1">
+                      <span ref={(el) => (dotsRef.current[0] = el)} className="text-blue-400">.</span>
+                      <span ref={(el) => (dotsRef.current[1] = el)} className="text-purple-400">.</span>
+                      <span ref={(el) => (dotsRef.current[2] = el)} className="text-pink-400">.</span>
+                    </span>
+                  </h3>
+                  <p className="text-gray-400 text-lg">AI is analyzing your document</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {summary && !analyzing && (
+            <div className="mt-6 p-6 bg-gray-800/80 backdrop-blur-xl rounded-xl border border-gray-600/50 shadow-xl">
+              <h3 className="text-2xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent mb-4">
+                Analysis Results
+              </h3>
+              <div className="text-gray-200 space-y-3 whitespace-pre-wrap leading-relaxed">
+                {summary.split('\n').map((line, index) => {
+                  // Bold text formatting
+                  if (line.trim().startsWith('**') && line.trim().endsWith('**')) {
+                    return (
+                      <div key={index} className="font-bold text-xl text-blue-300 mt-4 mb-2">
+                        {line.trim().replace(/\*\*/g, '')}
+                      </div>
+                    );
+                  }
+                  // Main bullet points (•)
+                  if (line.includes('•')) {
+                    return (
+                      <div key={index} className="flex items-start gap-3 ml-2">
+                        <span className="text-green-400 text-xl mt-0.5">•</span>
+                        <span className="flex-1">{line.replace('•', '').trim()}</span>
+                      </div>
+                    );
+                  }
+                  // Secondary bullet points (●)
+                  if (line.includes('●')) {
+                    return (
+                      <div key={index} className="flex items-start gap-3 ml-6">
+                        <span className="text-blue-400 text-lg mt-0.5">●</span>
+                        <span className="flex-1">{line.replace('●', '').trim()}</span>
+                      </div>
+                    );
+                  }
+                  // Tertiary bullet points (○)
+                  if (line.includes('○')) {
+                    return (
+                      <div key={index} className="flex items-start gap-3 ml-10">
+                        <span className="text-purple-400 text-lg mt-0.5">○</span>
+                        <span className="flex-1 text-gray-300">{line.replace('○', '').trim()}</span>
+                      </div>
+                    );
+                  }
+                  // Dash bullet points (-)
+                  if (line.trim().startsWith('-')) {
+                    return (
+                      <div key={index} className="flex items-start gap-3 ml-2">
+                        <span className="text-yellow-400 mt-0.5">−</span>
+                        <span className="flex-1 text-gray-300">{line.replace('-', '').trim()}</span>
+                      </div>
+                    );
+                  }
+                  // Regular text
+                  return line.trim() ? (
+                    <p key={index} className="text-gray-300">{line}</p>
+                  ) : (
+                    <div key={index} className="h-2"></div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </motion.div>
 
-        {/* Features Grid */}
+        {/* You can keep your Features Grid here as before */}
+      </motion.div>
+
+              {/* Features Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -258,10 +453,8 @@ const Dashboard = () => {
             </p>
           </motion.div>
         </div>
-      </motion.div>
     </div>
   );
 };
 
 export default Dashboard;
-
