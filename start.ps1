@@ -49,6 +49,7 @@ $mailFromName = [Environment]::GetEnvironmentVariable("MAIL_FROM_NAME", "Process
 $googleClientId = [Environment]::GetEnvironmentVariable("GOOGLE_CLIENT_ID", "Process")
 $googleClientSecret = [Environment]::GetEnvironmentVariable("GOOGLE_CLIENT_SECRET", "Process")
 $frontendUrl = [Environment]::GetEnvironmentVariable("FRONTEND_URL", "Process")
+$aiApiKey = [Environment]::GetEnvironmentVariable("AI_API_KEY", "Process")
 
 $backendCommand = @"
 `$env:JWT_SECRET_KEY='$jwtSecretKey'
@@ -61,10 +62,16 @@ $backendCommand = @"
 `$env:GOOGLE_CLIENT_ID='$googleClientId'
 `$env:GOOGLE_CLIENT_SECRET='$googleClientSecret'
 `$env:FRONTEND_URL='$frontendUrl'
+`$env:AI_API_KEY='$aiApiKey'
 cd '$backendPath'
 Write-Host 'Starting Spring Boot Backend...' -ForegroundColor Cyan
 Write-Host 'JWT Environment: Configured' -ForegroundColor Green
 Write-Host 'Mail Environment: Configured' -ForegroundColor Green
+if ([string]::IsNullOrWhiteSpace(`$env:AI_API_KEY)) {
+    Write-Host 'WARNING: AI API Key is NOT set. AI features may not work correctly.' -ForegroundColor Yellow
+} else {
+    Write-Host 'AI API Key: Configured' -ForegroundColor Green
+}
 & '.\mvnw.cmd' spring-boot:run
 "@
 Start-Process powershell -ArgumentList "-NoExit", "-Command", $backendCommand

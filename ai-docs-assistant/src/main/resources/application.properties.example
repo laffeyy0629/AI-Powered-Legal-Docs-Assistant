@@ -19,5 +19,9 @@ spring.jpa.properties.hibernate.format_sql=true
 # SERVER
 # ===============================
 server.port=8080
-ai.api.key=CHANGE-ME
+
+# ===============================
+# AI SERVICE
+# ===============================
+ai.api.key=${AI_API_KEY:your_api_key_here}
 
