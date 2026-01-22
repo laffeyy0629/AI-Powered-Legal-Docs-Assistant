@@ -37,3 +37,9 @@ jwt:
 app:
   frontend:
     url: ${FRONTEND_URL:http://localhost:5173}
+
+# AI Configuration
+ai:
+  api:
+    key: ${AI_API_KEY}
+
