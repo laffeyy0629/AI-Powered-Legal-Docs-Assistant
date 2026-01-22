@@ -41,5 +41,5 @@ app:
 # AI Configuration
 ai:
   api:
-    key: ${AI_API_KEY:CHANGE-ME}
+    key: ${AI_API_KEY:your_api_key_here}
 
