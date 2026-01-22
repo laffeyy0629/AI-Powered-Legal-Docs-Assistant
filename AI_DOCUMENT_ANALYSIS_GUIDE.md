@@ -1,15 +1,15 @@
 # AI Document Analysis Feature - Complete Guide
 
 ## Table of Contents
-1. [What Does it Do?](#-What-does-it-do)
-2. [Code Flow Diagram](#-code-flow-diagram)
-3. [Technical Architecture](#-technical-architecture)
-4. [Supported File Types](#-supported-file-types)
-5. [Algorithm Details](#-algorithm-details)
-6. [API Reference](#-api-reference)
-7. [Frontend Integration](#-frontend-integration)
-8. [Error Handling](#-error-handling)
-9. [Performance Optimization](#-performance-optimization)
+1. [What Does it Do?](#what-does-it-do)
+2. [Code Flow Diagram](#code-flow-diagram)
+3. [Technical Architecture](#technical-architecture)
+4. [Supported File Types](#supported-file-types)
+5. [Algorithm Details](#algorithm-details)
+6. [API Reference](#api-reference)
+7. [Frontend Integration](#frontend-integration)
+8. [Error Handling](#error-handling)
+9. [Performance Optimization](#performance-optimization)
 
 ---
 
@@ -588,7 +588,7 @@ try {
 }
 ```
 
-**All errors are returned as plain text responses** (not HTTP error codes), making them easy to display to users.
+**Document-analysis errors returned by `DocumentController` are sent as plain-text response bodies** (typically with HTTP 200), making them easy to display to users; other parts of the application (for example, authentication) may still use HTTP status codes for failures.
 
 ---
 

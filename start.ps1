@@ -67,7 +67,11 @@ cd '$backendPath'
 Write-Host 'Starting Spring Boot Backend...' -ForegroundColor Cyan
 Write-Host 'JWT Environment: Configured' -ForegroundColor Green
 Write-Host 'Mail Environment: Configured' -ForegroundColor Green
-Write-Host 'AI API Key: Configured' -ForegroundColor Green
+if ([string]::IsNullOrWhiteSpace(`$env:AI_API_KEY)) {
+    Write-Host 'WARNING: AI API Key is NOT set. AI features may not work correctly.' -ForegroundColor Yellow
+} else {
+    Write-Host 'AI API Key: Configured' -ForegroundColor Green
+}
 & '.\mvnw.cmd' spring-boot:run
 "@
 Start-Process powershell -ArgumentList "-NoExit", "-Command", $backendCommand
